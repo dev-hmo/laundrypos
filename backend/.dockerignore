@@ -1,0 +1,31 @@
+# Version control
+.git
+.gitignore
+
+# Documentation
+*.md
+LICENSE
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+tmp/
+*.tmp
+*.log
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Test
+*_test.go
+testdata/

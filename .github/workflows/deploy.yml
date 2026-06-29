@@ -1,0 +1,128 @@
+# ============================================================
+# Laundry OMS — Production Deployment Pipeline
+# Triggers on push to main:
+#   1. Frontend: lint → build → deploy to Vercel
+#   2. Backend:  vet → test → build Docker → push to GHCR → deploy to Koyeb
+# ============================================================
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  GO_VERSION: "1.23"
+  NODE_VERSION: "22"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}-api
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  # ─── Frontend ──────────────────────────────────────────
+  frontend:
+    name: Frontend — Lint, Build & Deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: "--prod"
+          working-directory: frontend
+
+  # ─── Backend ──────────────────────────────────────────
+  backend:
+    name: Backend — Vet, Test, Build & Deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./... -count=1
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=short
+            type=ref,event=branch
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Koyeb
+        uses: koyeb/action-deploy@v1
+        with:
+          api_token: ${{ secrets.KOYEB_API_TOKEN }}
+          app_name: ${{ vars.KOYEB_APP_NAME }}
+          service_name: ${{ vars.KOYEB_SERVICE_NAME }}
+          image: ${{ steps.meta.outputs.tags }}
+          env:
+            DATABASE_URL: ${{ secrets.DATABASE_URL }}
+            CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
+            LOG_LEVEL: info
+            RATE_LIMIT_RPS: "100"
+            RATE_LIMIT_BURST: "200"

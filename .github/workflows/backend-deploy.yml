@@ -1,0 +1,39 @@
+name: Deploy Backend to Koyeb
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/laundry-backend:latest
+
+      - name: Trigger Koyeb Deployment
+        run: |
+          if [ -n "${{ secrets.KOYEB_WEBHOOK_URL }}" ]; then
+            curl -X POST "${{ secrets.KOYEB_WEBHOOK_URL }}"
+          else
+            echo "No webhook URL found, skipping Koyeb trigger."
+          fi
