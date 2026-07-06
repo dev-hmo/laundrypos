@@ -11,6 +11,8 @@ services:
     envVars:
       - key: DATABASE_URL
         value: postgres://app_user:app_user_pass_2024@dpg-d95qd9ojs32c7388a6o0-a.oregon-postgres.render.com/laundry_oms
+      - key: PORT
+        value: "10000"
       - key: CORS_ORIGINS
         value: https://laundry-oms-eight.vercel.app
       - key: AUTH_SECRET
