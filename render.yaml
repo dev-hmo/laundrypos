@@ -15,11 +15,3 @@ services:
         value: https://laundry-oms-eight.vercel.app
       - key: AUTH_SECRET
         value: 91a252b90434fb899899b06eba04f9f38775b3f9596c5f4ce8be14e2468689a9
-      - key: LOG_LEVEL
-        value: info
-      - key: RATE_LIMIT_RPS
-        value: "100"
-      - key: RATE_LIMIT_BURST
-        value: "200"
-      - key: MIGRATIONS_DIR
-        value: migrations
