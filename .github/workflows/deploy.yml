@@ -2,7 +2,7 @@
 # Laundry OMS — Production Deployment Pipeline
 # Triggers on push to main:
 #   1. Frontend: lint → build → deploy to Vercel
-#   2. Backend:  vet → test → build Docker → push to GHCR → deploy to Koyeb
+#   2. Backend:  vet → test → build Docker → push to GHCR → deploy to Render
 # ============================================================
 
 name: Deploy
@@ -113,16 +113,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to Koyeb
-        uses: koyeb/action-deploy@v1
-        with:
-          api_token: ${{ secrets.KOYEB_API_TOKEN }}
-          app_name: ${{ vars.KOYEB_APP_NAME }}
-          service_name: ${{ vars.KOYEB_SERVICE_NAME }}
-          image: ${{ steps.meta.outputs.tags }}
-          env:
-            DATABASE_URL: ${{ secrets.DATABASE_URL }}
-            CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
-            LOG_LEVEL: info
-            RATE_LIMIT_RPS: "100"
-            RATE_LIMIT_BURST: "200"
+      - name: Deploy to Render
+        run: |
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+            curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          else
+            echo "No RENDER_DEPLOY_HOOK set — skipping Render deployment."
+          fi
