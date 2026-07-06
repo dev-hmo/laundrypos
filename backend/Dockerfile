@@ -30,17 +30,9 @@ FROM alpine:3.23
 
 RUN apk add --no-cache ca-certificates tzdata
 
-# Create non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
 WORKDIR /app
 
 # Copy binary from builder
 COPY --from=builder /build/server .
-
-# Set ownership
-RUN chown -R appuser:appgroup /app
-
-USER appuser
 
 ENTRYPOINT ["/app/server"]
