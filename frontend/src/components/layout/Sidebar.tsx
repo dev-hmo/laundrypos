@@ -1,69 +1,86 @@
-// ============================================================
-// Laundry OMS — Sidebar Navigation
-// ============================================================
-
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
+import {
+  IconDashboard, IconPOS, IconOrders, IconCustomers,
+  IconReports, IconServices, IconUsers, IconLogout,
+} from '@/components/ui/Icons';
+
+const NAV_ITEMS = [
+  { href: '/dashboard', label: 'Dashboard', icon: IconDashboard },
+  { href: '/pos', label: 'POS', icon: IconPOS },
+  { href: '/orders', label: 'Orders', icon: IconOrders },
+  { href: '/customers', label: 'Customers', icon: IconCustomers },
+  { href: '/reports', label: 'Reports', icon: IconReports },
+  { href: '/settings/services', label: 'Services', icon: IconServices },
+];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { isAdmin } = useAuth();
+  const { isAdmin, logout } = useAuth();
 
-  const NAV_ITEMS = [
-    { href: '/dashboard', label: 'Dashboard', icon: '◆' },
-    { href: '/pos', label: 'POS', icon: '⊞' },
-    { href: '/orders', label: 'Orders', icon: '☰' },
-    { href: '/customers', label: 'Customers', icon: '●' },
-    { href: '/reports', label: 'Reports', icon: '▤' },
-    { href: '/settings/services', label: 'Services', icon: '⚙' },
-    ...(isAdmin ? [{ href: '/admin/users', label: 'Users', icon: '◎' }] : []),
+  const items = [
+    ...NAV_ITEMS,
+    ...(isAdmin ? [{ href: '/admin/users', label: 'Users', icon: IconUsers }] : []),
   ];
 
   return (
-    <aside className="w-[72px] bg-[var(--color-navy)] flex flex-col items-center py-6 gap-2 shrink-0">
-      {/* Brand mark */}
-      <Link href="/dashboard" className="w-10 h-10 rounded-xl bg-[var(--color-accent)] flex items-center justify-center mb-6 no-underline">
-        <span className="text-white font-bold text-lg">L</span>
-      </Link>
+    <aside className="w-16 lg:w-56 bg-[var(--color-navy)] flex flex-col shrink-0 transition-all duration-200">
+      {/* Brand */}
+      <div className="h-16 flex items-center px-3 lg:px-5 border-b border-white/10">
+        <Link href="/dashboard" className="flex items-center gap-2.5 no-underline min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center shrink-0">
+            <span className="text-white font-bold text-sm">L</span>
+          </div>
+          <span className="hidden lg:block text-white font-bold text-sm tracking-wide truncate">
+            Laundry OMS
+          </span>
+        </Link>
+      </div>
 
       {/* Navigation */}
-      <nav className="flex flex-col gap-1 flex-1">
-        {NAV_ITEMS.map((item) => {
-          const isActive = pathname.startsWith(item.href);
+      <nav className="flex-1 py-3 px-2 lg:px-3 space-y-0.5 overflow-y-auto">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           return (
             <Link
               key={item.href}
               href={item.href}
               className={`
-                flex flex-col items-center justify-center w-14 h-14 rounded-xl
-                transition-all duration-150 no-underline
+                flex items-center gap-3 px-3 py-2.5 rounded-lg no-underline
+                transition-all duration-150 group
                 ${isActive
-                  ? 'bg-white/15 text-white'
+                  ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)]'
                   : 'text-white/50 hover:text-white/80 hover:bg-white/5'
                 }
               `}
+              title={item.label}
             >
-              <span className="text-xl leading-none mb-1">{item.icon}</span>
-              <span className="text-[10px] font-medium tracking-wide">{item.label}</span>
+              <Icon size={20} className="shrink-0" />
+              <span className="hidden lg:block text-sm font-medium truncate">
+                {item.label}
+              </span>
             </Link>
           );
         })}
       </nav>
 
-      {/* Footer */}
-      <Link
-        href="/login"
-        onClick={() => {
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('auth_user');
-        }}
-        className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center no-underline hover:bg-white/20 transition-colors"
-      >
-        <span className="text-white/60 text-xs font-semibold">↩</span>
-      </Link>
+      {/* Logout */}
+      <div className="px-2 lg:px-3 py-3 border-t border-white/10">
+        <button
+          onClick={logout}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg w-full
+                     text-white/40 hover:text-white/70 hover:bg-white/5
+                     transition-all duration-150 cursor-pointer border-none"
+          aria-label="Logout"
+        >
+          <IconLogout size={20} className="shrink-0" />
+          <span className="hidden lg:block text-sm font-medium">Logout</span>
+        </button>
+      </div>
     </aside>
   );
 }

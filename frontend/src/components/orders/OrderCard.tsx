@@ -1,9 +1,6 @@
-// ============================================================
-// Laundry OMS — Order Card (Kanban)
-// ============================================================
-
 'use client';
 
+import Link from 'next/link';
 import type { Order, OrderStatus } from '@/types';
 import { ORDER_STATUSES, STATUS_COLORS } from '@/types';
 
@@ -13,6 +10,13 @@ interface OrderCardProps {
   isUpdating: boolean;
 }
 
+const NEXT_LABELS: Record<string, string> = {
+  Received: 'Start Wash',
+  Washing: 'Start Press',
+  Pressing: 'Mark Ready',
+  Ready: 'Deliver',
+};
+
 export function OrderCard({ order, onAdvance, isUpdating }: OrderCardProps) {
   const currentIndex = ORDER_STATUSES.indexOf(order.status);
   const nextStatus = currentIndex < ORDER_STATUSES.length - 1
@@ -21,41 +25,36 @@ export function OrderCard({ order, onAdvance, isUpdating }: OrderCardProps) {
 
   const statusColor = STATUS_COLORS[order.status];
   const shortId = order.id.substring(0, 8).toUpperCase();
-
   const timeAgo = getTimeAgo(order.created_at);
   const itemSummary = order.items
     ?.map((item) => item.service_type)
     .join(', ') || '—';
 
   return (
-    <div
-      className={`card p-3.5 animate-fade-in ${isUpdating ? 'opacity-60 animate-pulse-soft' : ''}`}
-      id={`order-card-${order.id}`}
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-2">
-        <div>
-          <p className="text-xs font-mono text-[var(--color-text-muted)] mb-0.5">
-            #{shortId}
-          </p>
-          <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-            {order.customer_name || 'Customer'}
-          </p>
+    <div className={`card p-3.5 ${isUpdating ? 'opacity-60 animate-pulse-soft' : ''}`}>
+      <Link href={`/orders/${order.id}`} className="no-underline">
+        <div className="flex items-start justify-between mb-2">
+          <div className="min-w-0">
+            <p className="text-[11px] font-mono text-[var(--color-text-muted)] mb-0.5">
+              #{shortId}
+            </p>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate max-w-[160px]">
+              {order.customer_name || 'Customer'}
+            </p>
+          </div>
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 
+                           ${statusColor.bg} ${statusColor.text} ${statusColor.border} border`}>
+            {order.status}
+          </span>
         </div>
-        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full 
-                         ${statusColor.bg} ${statusColor.text} ${statusColor.border} border`}>
-          {order.status}
-        </span>
-      </div>
 
-      {/* Items summary */}
-      <p className="text-xs text-[var(--color-text-secondary)] mb-2 line-clamp-2 leading-relaxed">
-        {itemSummary}
-      </p>
+        <p className="text-xs text-[var(--color-text-secondary)] mb-2.5 line-clamp-2 leading-relaxed">
+          {itemSummary}
+        </p>
+      </Link>
 
-      {/* Footer */}
       <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <span className="text-xs text-[var(--color-text-muted)]">{timeAgo}</span>
           <span className="text-sm font-bold text-[var(--color-text-primary)] tabular-nums">
             ${order.total_amount.toFixed(2)}
@@ -66,22 +65,23 @@ export function OrderCard({ order, onAdvance, isUpdating }: OrderCardProps) {
           <button
             onClick={() => onAdvance(order.id, nextStatus)}
             disabled={isUpdating}
-            className="text-xs font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]
-                       hover:bg-[var(--color-accent-light)] px-2.5 py-1.5 rounded-md transition-all
-                       disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+            className="text-xs font-semibold text-white bg-[var(--color-accent)] 
+                       hover:bg-[var(--color-accent-hover)] px-2.5 py-1.5 rounded-md transition-all
+                       disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 shadow-sm"
           >
-            {nextStatus}
-            <span className="text-[10px]">→</span>
+            {NEXT_LABELS[nextStatus] || nextStatus}
           </button>
         )}
       </div>
 
-      {/* Promised date */}
       {order.promised_date && (
         <div className="mt-2 pt-2 border-t border-slate-100">
-          <p className="text-[10px] text-[var(--color-text-muted)]">
+          <p className="text-[10px] text-[var(--color-text-muted)] flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
             Promise: {new Date(order.promised_date).toLocaleDateString('en-US', {
-              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+              month: 'short', day: 'numeric',
             })}
           </p>
         </div>

@@ -50,23 +50,25 @@ func Setup(getDB func() *sql.DB, cfg *config.Config) *gin.Engine {
 		{
 			// Auth
 			protected.GET("/auth/me", authHandler.Me)
+			protected.POST("/auth/logout", authHandler.Logout)
+			protected.PUT("/auth/change-password", authHandler.ChangePassword)
 
-			// Customers CRUD
+			// Customers CRUD (all roles can view/create/update, admin-only delete)
 			protected.GET("/customers", customerHandler.ListAll)
 			protected.GET("/customers/search", customerHandler.Search)
 			protected.GET("/customers/:id", customerHandler.GetByID)
 			protected.POST("/customers", customerHandler.Create)
 			protected.PUT("/customers/:id", customerHandler.Update)
-			protected.DELETE("/customers/:id", customerHandler.Delete)
+			protected.DELETE("/customers/:id", middleware.RequireRole("admin"), customerHandler.Delete)
 
-			// Orders
+			// Orders (all roles can view/create, manager+admin can update/cancel)
 			protected.GET("/orders", orderHandler.ListActive)
 			protected.GET("/orders/all", orderHandler.ListAll)
 			protected.POST("/orders", orderHandler.Create)
 			protected.GET("/orders/:id", orderHandler.GetByID)
-			protected.PUT("/orders/:id", orderHandler.Update)
-			protected.PATCH("/orders/:id/status", orderHandler.UpdateStatus)
-			protected.PATCH("/orders/:id/cancel", orderHandler.Cancel)
+			protected.PUT("/orders/:id", middleware.RequireRole("admin", "manager"), orderHandler.Update)
+			protected.PATCH("/orders/:id/status", middleware.RequireRole("admin", "manager"), orderHandler.UpdateStatus)
+			protected.PATCH("/orders/:id/cancel", middleware.RequireRole("admin", "manager"), orderHandler.Cancel)
 
 			// Payments
 			protected.POST("/orders/:id/payments", paymentHandler.Create)
@@ -76,21 +78,21 @@ func Setup(getDB func() *sql.DB, cfg *config.Config) *gin.Engine {
 			protected.GET("/orders/:id/invoice", invoiceHandler.GetByOrder)
 			protected.PATCH("/orders/:id/invoice/printed", invoiceHandler.MarkPrinted)
 
-			// Services CRUD
+			// Services (viewable by all, admin-only management)
 			protected.GET("/services", serviceHandler.List)
 			protected.GET("/services/:id", serviceHandler.GetByID)
-			protected.POST("/services", serviceHandler.Create)
-			protected.PUT("/services/:id", serviceHandler.Update)
-			protected.DELETE("/services/:id", serviceHandler.Delete)
+			protected.POST("/services", middleware.RequireRole("admin"), serviceHandler.Create)
+			protected.PUT("/services/:id", middleware.RequireRole("admin"), serviceHandler.Update)
+			protected.DELETE("/services/:id", middleware.RequireRole("admin"), serviceHandler.Delete)
 
 			// Dashboard
 			protected.GET("/dashboard/stats", dashboardHandler.Stats)
 
-			// Reports
-			protected.GET("/reports/daily", reportHandler.DailySummary)
-			protected.GET("/reports/revenue", reportHandler.RevenueByRange)
-			protected.GET("/reports/services", reportHandler.ServiceBreakdown)
-			protected.GET("/reports/top-customers", reportHandler.TopCustomers)
+			// Reports (admin and manager only)
+			protected.GET("/reports/daily", middleware.RequireRole("admin", "manager"), reportHandler.DailySummary)
+			protected.GET("/reports/revenue", middleware.RequireRole("admin", "manager"), reportHandler.RevenueByRange)
+			protected.GET("/reports/services", middleware.RequireRole("admin", "manager"), reportHandler.ServiceBreakdown)
+			protected.GET("/reports/top-customers", middleware.RequireRole("admin", "manager"), reportHandler.TopCustomers)
 		}
 
 		// Admin-only routes

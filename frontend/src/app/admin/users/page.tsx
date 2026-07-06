@@ -6,6 +6,8 @@ import { userApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
 import { useRouter } from 'next/navigation';
+import { IconPlus, IconEdit, IconAlertCircle, IconUsers } from '@/components/ui/Icons';
+import { EmptyState } from '@/components/ui/EmptyState';
 import type { User, UserRole, CreateUserPayload } from '@/types';
 
 export default function AdminUsersPage() {
@@ -60,8 +62,14 @@ export default function AdminUsersPage() {
 
   if (!isAdmin) {
     return (
-      <div className="card p-8 text-center">
-        <p className="text-[var(--color-error)] font-medium">Access denied. Admin only.</p>
+      <div className="card p-8 text-center space-y-3">
+        <div className="flex justify-center">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto">
+            <IconAlertCircle size={24} className="text-[var(--color-error)]" />
+          </div>
+        </div>
+        <p className="text-[var(--color-error)] font-medium">Access denied</p>
+        <p className="text-sm text-[var(--color-text-muted)]">This section is restricted to administrators only.</p>
       </div>
     );
   }
@@ -90,9 +98,9 @@ export default function AdminUsersPage() {
         <h2 className="text-lg font-bold text-[var(--color-text-primary)]">User Management</h2>
         <button
           onClick={() => { setEditUser(null); setFormData({ email: '', password: '', name: '', role: 'staff' }); setShowModal(true); }}
-          className="btn-primary"
+          className="btn-primary flex items-center gap-1.5"
         >
-          + Add User
+          <IconPlus size={16} /> Add User
         </button>
       </div>
 
@@ -126,7 +134,9 @@ export default function AdminUsersPage() {
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-sm text-[var(--color-text-muted)]">No users found</td>
+                  <td colSpan={5} className="py-12">
+                    <EmptyState icon={IconUsers} title="No users found" description="Invite team members to get started." />
+                  </td>
                 </tr>
               ) : (
                 users.map((user) => (
@@ -138,14 +148,8 @@ export default function AdminUsersPage() {
                       <span className={`inline-block w-2 h-2 rounded-full ${user.is_active ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => openEdit(user)} className="text-xs text-[var(--color-accent)] hover:underline mr-3">
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => { if (confirm('Deactivate this user?')) deactivateMutation.mutate(user.id); }}
-                        className="text-xs text-[var(--color-error)] hover:underline"
-                      >
-                        Deactivate
+                      <button onClick={() => openEdit(user)} className="btn-ghost mr-1" title="Edit">
+                        <IconEdit size={16} />
                       </button>
                     </td>
                   </tr>

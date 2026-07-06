@@ -1,31 +1,21 @@
-import { authHeaders } from './auth';
-
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
-
-function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('auth_token');
-}
 
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getToken();
   const url = `${API_BASE}${endpoint}`;
 
   const res = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
-      ...authHeaders(token),
       ...options.headers,
     },
+    credentials: 'include',
     ...options,
   });
 
   if (res.status === 401) {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
     if (typeof window !== 'undefined') {
       window.location.href = '/login';
     }

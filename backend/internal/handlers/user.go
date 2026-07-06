@@ -20,7 +20,7 @@ func NewUserHandler(db func() *sql.DB) *UserHandler {
 func (h *UserHandler) List(c *gin.Context) {
 	if !requireDB(h.getDB, c) { return }
 	rows, err := h.getDB().Query(
-		`SELECT id, email, name, role, is_active, created_at, updated_at
+		`SELECT id, email, name, role, is_active, password_reset_required, created_at, updated_at
 		 FROM users ORDER BY name ASC`,
 	)
 	if err != nil {
@@ -32,7 +32,7 @@ func (h *UserHandler) List(c *gin.Context) {
 	var users []models.User
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.IsActive, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.IsActive, &u.PasswordResetRequired, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan user: " + err.Error()})
 			return
 		}
@@ -51,9 +51,9 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	var u models.User
 	err := h.getDB().QueryRow(
-		`SELECT id, email, name, role, is_active, created_at, updated_at
+		`SELECT id, email, name, role, is_active, password_reset_required, created_at, updated_at
 		 FROM users WHERE id = $1`, id,
-	).Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
+	).Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.IsActive, &u.PasswordResetRequired, &u.CreatedAt, &u.UpdatedAt)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -83,9 +83,9 @@ func (h *UserHandler) Create(c *gin.Context) {
 	err = h.getDB().QueryRow(
 		`INSERT INTO users (email, password_hash, name, role)
 		 VALUES ($1, $2, $3, $4)
-		 RETURNING id, email, name, role, is_active, created_at, updated_at`,
+		 RETURNING id, email, name, role, is_active, password_reset_required, created_at, updated_at`,
 		req.Email, string(hashedPassword), req.Name, req.Role,
-	).Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
+	).Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.IsActive, &u.PasswordResetRequired, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user: " + err.Error()})
 		return
@@ -130,11 +130,11 @@ func (h *UserHandler) Update(c *gin.Context) {
 	}
 
 	query = query[:len(query)-2]
-	query += ` WHERE id = $` + string(rune('0'+argIdx)) + ` RETURNING id, email, name, role, is_active, created_at, updated_at`
+	query += ` WHERE id = $` + string(rune('0'+argIdx)) + ` RETURNING id, email, name, role, is_active, password_reset_required, created_at, updated_at`
 	args = append(args, id)
 
 	var u models.User
-	err := h.getDB().QueryRow(query, args...).Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
+	err := h.getDB().QueryRow(query, args...).Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.IsActive, &u.PasswordResetRequired, &u.CreatedAt, &u.UpdatedAt)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return

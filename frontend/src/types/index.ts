@@ -170,6 +170,7 @@ export interface User {
   name: string;
   role: UserRole;
   is_active: boolean;
+  password_reset_required?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -182,6 +183,7 @@ export interface LoginRequest {
 export interface LoginResponse {
   token: string;
   user: User;
+  password_reset_required?: boolean;
 }
 
 export interface CreateUserPayload {

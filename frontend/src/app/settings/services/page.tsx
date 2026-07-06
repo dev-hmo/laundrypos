@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceApi } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
+import { IconPlus, IconEdit, IconTrash, IconPackage } from '@/components/ui/Icons';
+import { EmptyState } from '@/components/ui/EmptyState';
 import type { Service, CreateServicePayload, UpdateServicePayload } from '@/types';
 
 export default function ServicesPage() {
@@ -90,7 +92,9 @@ export default function ServicesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Service Catalog</h2>
-        <button onClick={openCreate} className="btn-primary">+ Add Service</button>
+        <button onClick={openCreate} className="btn-primary flex items-center gap-1.5">
+          <IconPlus size={16} /> Add Service
+        </button>
       </div>
 
       {isLoading && (
@@ -125,7 +129,9 @@ export default function ServicesPage() {
             <tbody>
               {services.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-sm text-[var(--color-text-muted)]">No services found</td>
+                  <td colSpan={7} className="py-12">
+                    <EmptyState icon={IconPackage} title="No services yet" description="Create your first laundry service to get started." />
+                  </td>
                 </tr>
               ) : (
                 services.map((service) => (
@@ -141,12 +147,15 @@ export default function ServicesPage() {
                       <span className={`inline-block w-2 h-2 rounded-full ${service.is_active ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => openEdit(service)} className="text-xs text-[var(--color-accent)] hover:underline mr-3">Edit</button>
+                      <button onClick={() => openEdit(service)} className="btn-ghost mr-1" title="Edit">
+                        <IconEdit size={16} />
+                      </button>
                       <button
                         onClick={() => { if (confirm('Delete this service?')) deleteMutation.mutate(service.id); }}
-                        className="text-xs text-[var(--color-error)] hover:underline"
+                        className="btn-ghost text-[var(--color-error)]"
+                        title="Delete"
                       >
-                        Delete
+                        <IconTrash size={16} />
                       </button>
                     </td>
                   </tr>

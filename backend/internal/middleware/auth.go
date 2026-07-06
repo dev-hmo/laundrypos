@@ -39,34 +39,43 @@ func GenerateToken(userID, email, role string) (string, error) {
 	return token.SignedString(jwtSecret)
 }
 
-func RequireAuth(c *gin.Context) {
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
-		return
-	}
-
-	parts := strings.SplitN(authHeader, " ", 2)
-	if len(parts) != 2 || parts[0] != "Bearer" {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format"})
-		return
-	}
-
-	tokenStr := parts[1]
+func parseAndSetToken(c *gin.Context, tokenStr string) bool {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 		return jwtSecret, nil
 	})
-
 	if err != nil || !token.Valid {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
-		return
+		return false
 	}
-
 	c.Set("user_id", claims.UserID)
 	c.Set("user_email", claims.Email)
 	c.Set("user_role", claims.Role)
-	c.Next()
+	return true
+}
+
+func RequireAuth(c *gin.Context) {
+	// Try cookie first
+	tokenStr, err := c.Cookie("auth_token")
+	if err == nil && tokenStr != "" {
+		if parseAndSetToken(c, tokenStr) {
+			c.Next()
+			return
+		}
+	}
+
+	// Fallback to Authorization header
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" {
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) == 2 && parts[0] == "Bearer" {
+			if parseAndSetToken(c, parts[1]) {
+				c.Next()
+				return
+			}
+		}
+	}
+
+	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 }
 
 func RequireRole(roles ...string) gin.HandlerFunc {

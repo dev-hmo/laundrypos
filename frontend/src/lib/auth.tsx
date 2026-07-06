@@ -1,39 +1,42 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import type { User } from '@/types';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (token: string, user: User) => void;
+  passwordResetRequired: boolean;
+  login: (token: string, user: User, passwordResetRequired?: boolean) => void;
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   token: null,
   isLoading: true,
+  passwordResetRequired: false,
   login: () => {},
   logout: () => {},
   isAuthenticated: false,
   isAdmin: false,
+  changePassword: async () => {},
 });
 
-function getStoredAuth(): { token: string | null; user: User | null } {
-  if (typeof window === 'undefined') return { token: null, user: null };
+async function fetchMe(): Promise<{ user: User | null; token: string | null }> {
   try {
-    const token = localStorage.getItem('auth_token');
-    const userStr = localStorage.getItem('auth_user');
-    return {
-      token,
-      user: userStr ? JSON.parse(userStr) : null,
-    };
+    const res = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' });
+    if (!res.ok) return { user: null, token: null };
+    const user: User = await res.json();
+    return { user, token: null };
   } catch {
-    return { token: null, user: null };
+    return { user: null, token: null };
   }
 }
 
@@ -41,29 +44,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [passwordResetRequired, setPasswordResetRequired] = useState(false);
 
   useEffect(() => {
-    const stored = getStoredAuth();
-    if (stored.token && stored.user) {
-      setToken(stored.token);
-      setUser(stored.user);
-    }
-    setIsLoading(false);
+    fetchMe().then(({ user }) => {
+      if (user) {
+        setUser(user);
+      }
+      setIsLoading(false);
+    });
   }, []);
 
-  const login = (newToken: string, newUser: User) => {
-    localStorage.setItem('auth_token', newToken);
-    localStorage.setItem('auth_user', JSON.stringify(newUser));
+  const login = (newToken: string, newUser: User, passwordResetRequired?: boolean) => {
     setToken(newToken);
     setUser(newUser);
+    if (passwordResetRequired) setPasswordResetRequired(true);
   };
 
-  const logout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
+  const logout = useCallback(async () => {
+    try {
+      await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
+    } catch {
+    }
     setToken(null);
     setUser(null);
-  };
+    setPasswordResetRequired(false);
+  }, []);
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    const res = await fetch(`${API_BASE}/auth/change-password`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to change password');
+    setPasswordResetRequired(false);
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -71,9 +89,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         token,
         isLoading,
+        passwordResetRequired,
         login,
         logout,
-        isAuthenticated: !!token && !!user,
+        changePassword,
+        isAuthenticated: !!token || !!user,
         isAdmin: user?.role === 'admin',
       }}
     >
@@ -84,9 +104,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   return useContext(AuthContext);
-}
-
-export function authHeaders(token: string | null): Record<string, string> {
-  if (!token) return {};
-  return { Authorization: `Bearer ${token}` };
 }

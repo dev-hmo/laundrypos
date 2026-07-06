@@ -4,6 +4,8 @@ import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { customerApiExtended, orderApiExtended } from '@/lib/api';
 import Link from 'next/link';
+import { IconPackage, IconCalendar, IconDollar, IconEdit } from '@/components/ui/Icons';
+import { EmptyState } from '@/components/ui/EmptyState';
 import type { Customer, Order } from '@/types';
 
 export default function CustomerDetailPage() {
@@ -55,51 +57,62 @@ export default function CustomerDetailPage() {
               </p>
             </div>
           </div>
-          <Link href={`/customers/${id}/edit`} className="btn-secondary text-sm">
-            Edit
+          <Link href={`/customers/${id}/edit`} className="btn-secondary text-sm flex items-center gap-1.5">
+            <IconEdit size={14} /> Edit
           </Link>
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-200">
+      <div className="card overflow-hidden rounded-xl">
+        <div className="px-5 py-3 border-b border-slate-200 flex items-center gap-2">
+          <IconPackage size={16} className="text-[var(--color-text-muted)]" />
           <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
             Order History ({ordersData?.count || 0})
           </h3>
         </div>
         {loadingOrders ? (
-          <div className="p-4 space-y-3">
+          <div className="p-5 space-y-3">
             {[1, 2].map((i) => (
-              <div key={i} className="h-16 bg-slate-100 rounded animate-pulse" />
+              <div key={i} className="h-16 bg-slate-100 rounded-lg animate-pulse" />
             ))}
           </div>
         ) : ordersData?.orders.length === 0 ? (
-          <p className="text-center py-12 text-sm text-[var(--color-text-muted)]">No orders yet</p>
+          <div className="py-8">
+            <EmptyState icon={IconPackage} title="No orders yet" description="This customer hasn't placed any orders." />
+          </div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-200 bg-[var(--color-surface-overlay)]">
-                <th className="text-left text-xs font-semibold text-[var(--color-text-muted)] uppercase px-4 py-2">Order</th>
-                <th className="text-left text-xs font-semibold text-[var(--color-text-muted)] uppercase px-4 py-2">Status</th>
-                <th className="text-right text-xs font-semibold text-[var(--color-text-muted)] uppercase px-4 py-2">Total</th>
-                <th className="text-right text-xs font-semibold text-[var(--color-text-muted)] uppercase px-4 py-2">Date</th>
+                <th className="text-left text-xs font-semibold text-[var(--color-text-muted)] uppercase px-5 py-3">Order</th>
+                <th className="text-left text-xs font-semibold text-[var(--color-text-muted)] uppercase px-5 py-3">Status</th>
+                <th className="text-right text-xs font-semibold text-[var(--color-text-muted)] uppercase px-5 py-3">Total</th>
+                <th className="text-right text-xs font-semibold text-[var(--color-text-muted)] uppercase px-5 py-3">Date</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100">
               {ordersData?.orders.map((order: Order) => (
-                <tr key={order.id} className="border-b border-slate-100 hover:bg-[var(--color-surface-overlay)]">
-                  <td className="px-4 py-3">
+                <tr key={order.id} className="hover:bg-[var(--color-surface-overlay)]/50 transition-colors">
+                  <td className="px-5 py-3">
                     <Link href={`/orders/${order.id}`} className="text-sm text-[var(--color-accent)] hover:underline font-medium">
                       #{order.id.slice(0, 8)}
                     </Link>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs font-medium px-2 py-1 rounded-full bg-slate-100 text-slate-700">
+                  <td className="px-5 py-3">
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                      order.status === 'Delivered'
+                        ? 'bg-slate-100 text-slate-500'
+                        : order.status === 'Ready'
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : order.status === 'Washing' || order.status === 'Pressing'
+                        ? 'bg-cyan-50 text-cyan-700'
+                        : 'bg-blue-50 text-blue-700'
+                    }`}>
                       {order.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-right tabular-nums">${order.total_amount.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-sm text-right text-[var(--color-text-muted)]">
+                  <td className="px-5 py-3 text-sm text-right tabular-nums font-semibold">${order.total_amount.toFixed(2)}</td>
+                  <td className="px-5 py-3 text-sm text-right text-[var(--color-text-muted)] tabular-nums">
                     {new Date(order.created_at).toLocaleDateString()}
                   </td>
                 </tr>
