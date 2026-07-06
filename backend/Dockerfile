@@ -43,9 +43,4 @@ RUN chown -R appuser:appgroup /app
 
 USER appuser
 
-EXPOSE 8080
-
-HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/v1/health || exit 1
-
-ENTRYPOINT ["./server"]
+ENTRYPOINT ["/app/server"]
