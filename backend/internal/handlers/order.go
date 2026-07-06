@@ -13,12 +13,12 @@ import (
 
 // OrderHandler handles order-related API requests.
 type OrderHandler struct {
-	db *sql.DB
+	getDB func() *sql.DB
 }
 
 // NewOrderHandler creates a new order handler.
-func NewOrderHandler(db *sql.DB) *OrderHandler {
-	return &OrderHandler{db: db}
+func NewOrderHandler(db func() *sql.DB) *OrderHandler {
+	return &OrderHandler{getDB: db}
 }
 
 // Create handles POST /api/v1/orders
@@ -31,7 +31,7 @@ func (h *OrderHandler) Create(c *gin.Context) {
 	}
 
 	// Begin transaction
-	tx, err := h.db.Begin()
+	tx, err := h.getDB().Begin()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start transaction"})
 		return
@@ -134,7 +134,7 @@ func (h *OrderHandler) ListActive(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid status filter"})
 			return
 		}
-		rows, err = h.db.Query(
+		rows, err = h.getDB().Query(
 			`SELECT o.id, o.customer_id, c.name, c.phone, o.status, o.total_amount, o.tax_amount,
 			        o.promised_date, o.notes, o.created_at, o.updated_at
 			 FROM orders o
@@ -145,7 +145,7 @@ func (h *OrderHandler) ListActive(c *gin.Context) {
 			statusFilter, limitInt, offsetInt,
 		)
 	} else {
-		rows, err = h.db.Query(
+		rows, err = h.getDB().Query(
 			`SELECT o.id, o.customer_id, c.name, c.phone, o.status, o.total_amount, o.tax_amount,
 			        o.promised_date, o.notes, o.created_at, o.updated_at
 			 FROM orders o
@@ -189,7 +189,7 @@ func (h *OrderHandler) ListActive(c *gin.Context) {
 		}
 
 		// Use pq.Array for safe PostgreSQL array parameter
-		itemRows, err := h.db.Query(
+		itemRows, err := h.getDB().Query(
 			`SELECT id, order_id, service_type, weight_kg, quantity, unit_price, subtotal
 			 FROM order_items WHERE order_id = ANY($1)`,
 			pq.Array(orderIDList),
@@ -240,7 +240,7 @@ func (h *OrderHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	var order models.Order
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`UPDATE orders SET status = $1 WHERE id = $2
 		 RETURNING id, customer_id, status, total_amount, tax_amount, promised_date, notes, created_at, updated_at`,
 		req.Status, orderID,
@@ -265,7 +265,7 @@ func (h *OrderHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 
 	var order models.Order
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`SELECT o.id, o.customer_id, c.name, c.phone, o.status, o.total_amount, o.tax_amount,
 		        o.promised_date, o.notes, o.created_at, o.updated_at
 		 FROM orders o
@@ -285,7 +285,7 @@ func (h *OrderHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	itemRows, err := h.db.Query(
+	itemRows, err := h.getDB().Query(
 		`SELECT id, order_id, service_type, weight_kg, quantity, unit_price, subtotal
 		 FROM order_items WHERE order_id = $1`, id,
 	)
@@ -343,7 +343,7 @@ func (h *OrderHandler) Update(c *gin.Context) {
 	args = append(args, id)
 
 	var order models.Order
-	err := h.db.QueryRow(query, args...).Scan(
+	err := h.getDB().QueryRow(query, args...).Scan(
 		&order.ID, &order.CustomerID, &order.Status, &order.TotalAmount, &order.TaxAmount,
 		&order.PromisedDate, &order.Notes, &order.CreatedAt, &order.UpdatedAt,
 	)
@@ -364,7 +364,7 @@ func (h *OrderHandler) Cancel(c *gin.Context) {
 	id := c.Param("id")
 
 	var order models.Order
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`UPDATE orders SET status = 'Cancelled' WHERE id = $1 AND status NOT IN ('Delivered', 'Cancelled')
 		 RETURNING id, customer_id, status, total_amount, tax_amount, promised_date, notes, created_at, updated_at`,
 		id,
@@ -439,13 +439,13 @@ func (h *OrderHandler) ListAll(c *gin.Context) {
 	limitArgs := append(args, limitInt, offsetInt)
 
 	var totalCount int
-	err := h.db.QueryRow(countQuery, args...).Scan(&totalCount)
+	err := h.getDB().QueryRow(countQuery, args...).Scan(&totalCount)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count orders: " + err.Error()})
 		return
 	}
 
-	rows, err := h.db.Query(query, limitArgs...)
+	rows, err := h.getDB().Query(query, limitArgs...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch orders: " + err.Error()})
 		return

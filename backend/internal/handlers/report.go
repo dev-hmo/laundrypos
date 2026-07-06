@@ -11,11 +11,11 @@ import (
 )
 
 type ReportHandler struct {
-	db *sql.DB
+	getDB func() *sql.DB
 }
 
-func NewReportHandler(db *sql.DB) *ReportHandler {
-	return &ReportHandler{db: db}
+func NewReportHandler(db func() *sql.DB) *ReportHandler {
+	return &ReportHandler{getDB: db}
 }
 
 func (h *ReportHandler) DailySummary(c *gin.Context) {
@@ -24,7 +24,7 @@ func (h *ReportHandler) DailySummary(c *gin.Context) {
 	var summary models.DailySummary
 	summary.Date = date
 
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`SELECT COUNT(*) FROM orders WHERE created_at::date = $1`, date,
 	).Scan(&summary.TotalOrders)
 	if err != nil {
@@ -32,7 +32,7 @@ func (h *ReportHandler) DailySummary(c *gin.Context) {
 		return
 	}
 
-	err = h.db.QueryRow(
+	err = h.getDB().QueryRow(
 		`SELECT COALESCE(SUM(o.total_amount), 0) FROM orders o WHERE o.created_at::date = $1`, date,
 	).Scan(&summary.TotalRevenue)
 	if err != nil {
@@ -40,7 +40,7 @@ func (h *ReportHandler) DailySummary(c *gin.Context) {
 		return
 	}
 
-	err = h.db.QueryRow(
+	err = h.getDB().QueryRow(
 		`SELECT COALESCE(SUM(o.tax_amount), 0) FROM orders o WHERE o.created_at::date = $1`, date,
 	).Scan(&summary.TotalTax)
 	if err != nil {
@@ -48,7 +48,7 @@ func (h *ReportHandler) DailySummary(c *gin.Context) {
 		return
 	}
 
-	err = h.db.QueryRow(
+	err = h.getDB().QueryRow(
 		`SELECT COALESCE(SUM(p.amount), 0) FROM payments p WHERE p.paid_at::date = $1 AND p.method = 'cash'`, date,
 	).Scan(&summary.CashAmount)
 	if err != nil {
@@ -56,7 +56,7 @@ func (h *ReportHandler) DailySummary(c *gin.Context) {
 		return
 	}
 
-	err = h.db.QueryRow(
+	err = h.getDB().QueryRow(
 		`SELECT COALESCE(SUM(p.amount), 0) FROM payments p WHERE p.paid_at::date = $1 AND p.method = 'card'`, date,
 	).Scan(&summary.CardAmount)
 	if err != nil {
@@ -64,7 +64,7 @@ func (h *ReportHandler) DailySummary(c *gin.Context) {
 		return
 	}
 
-	err = h.db.QueryRow(
+	err = h.getDB().QueryRow(
 		`SELECT COALESCE(SUM(p.amount), 0) FROM payments p WHERE p.paid_at::date = $1 AND p.method = 'mobile'`, date,
 	).Scan(&summary.MobileAmount)
 	if err != nil {
@@ -90,7 +90,7 @@ func (h *ReportHandler) RevenueByRange(c *gin.Context) {
 		to = time.Now().Format("2006-01-02")
 	}
 
-	rows, err := h.db.Query(
+	rows, err := h.getDB().Query(
 		`SELECT p.paid_at::date AS date, COALESCE(SUM(p.amount), 0) AS amount
 		 FROM payments p
 		 WHERE p.paid_at::date >= $1 AND p.paid_at::date <= $2
@@ -132,7 +132,7 @@ func (h *ReportHandler) ServiceBreakdown(c *gin.Context) {
 		to = time.Now().Format("2006-01-02")
 	}
 
-	rows, err := h.db.Query(
+	rows, err := h.getDB().Query(
 		`SELECT oi.service_type AS service_name,
 		        COUNT(*) AS count,
 		        COALESCE(SUM(oi.subtotal), 0) AS revenue
@@ -183,7 +183,7 @@ func (h *ReportHandler) TopCustomers(c *gin.Context) {
 		limitInt = 10
 	}
 
-	rows, err := h.db.Query(
+	rows, err := h.getDB().Query(
 		`SELECT c.id, c.name,
 		        COUNT(DISTINCT o.id) AS order_count,
 		        COALESCE(SUM(p.amount), 0) AS total_spent

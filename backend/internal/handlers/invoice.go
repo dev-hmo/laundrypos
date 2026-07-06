@@ -11,18 +11,18 @@ import (
 )
 
 type InvoiceHandler struct {
-	db *sql.DB
+	getDB func() *sql.DB
 }
 
-func NewInvoiceHandler(db *sql.DB) *InvoiceHandler {
-	return &InvoiceHandler{db: db}
+func NewInvoiceHandler(db func() *sql.DB) *InvoiceHandler {
+	return &InvoiceHandler{getDB: db}
 }
 
 func (h *InvoiceHandler) GetByOrder(c *gin.Context) {
-	orderID := c.Param("orderId")
+	orderID := c.Param("id")
 
 	var invoice models.Invoice
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`SELECT id, order_id, invoice_number, issued_at, printed
 		 FROM invoices WHERE order_id = $1`, orderID,
 	).Scan(&invoice.ID, &invoice.OrderID, &invoice.InvoiceNumber, &invoice.IssuedAt, &invoice.Printed)
@@ -31,7 +31,7 @@ func (h *InvoiceHandler) GetByOrder(c *gin.Context) {
 		now := time.Now()
 		invoiceNumber := fmt.Sprintf("INV-%s-%04d", now.Format("20060102"), now.UnixMilli()%10000)
 
-		err = h.db.QueryRow(
+		err = h.getDB().QueryRow(
 			`INSERT INTO invoices (order_id, invoice_number)
 			 VALUES ($1, $2)
 			 RETURNING id, order_id, invoice_number, issued_at, printed`,
@@ -56,9 +56,9 @@ func (h *InvoiceHandler) GetByOrder(c *gin.Context) {
 }
 
 func (h *InvoiceHandler) MarkPrinted(c *gin.Context) {
-	orderID := c.Param("orderId")
+	orderID := c.Param("id")
 
-	result, err := h.db.Exec(`UPDATE invoices SET printed = TRUE WHERE order_id = $1`, orderID)
+	result, err := h.getDB().Exec(`UPDATE invoices SET printed = TRUE WHERE order_id = $1`, orderID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update invoice: " + err.Error()})
 		return
@@ -77,7 +77,7 @@ func (h *InvoiceHandler) buildInvoiceResponse(orderID string, invoice models.Inv
 	var resp models.InvoiceResponse
 	resp.Invoice = invoice
 
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`SELECT c.name, c.phone, o.total_amount, o.tax_amount
 		 FROM orders o JOIN customers c ON c.id = o.customer_id
 		 WHERE o.id = $1`, orderID,
@@ -86,7 +86,7 @@ func (h *InvoiceHandler) buildInvoiceResponse(orderID string, invoice models.Inv
 		return resp, fmt.Errorf("failed to fetch order details: %w", err)
 	}
 
-	itemRows, err := h.db.Query(
+	itemRows, err := h.getDB().Query(
 		`SELECT id, order_id, service_type, weight_kg, quantity, unit_price, subtotal
 		 FROM order_items WHERE order_id = $1`, orderID,
 	)
@@ -103,7 +103,7 @@ func (h *InvoiceHandler) buildInvoiceResponse(orderID string, invoice models.Inv
 		resp.Items = append(resp.Items, item)
 	}
 
-	payRows, err := h.db.Query(
+	payRows, err := h.getDB().Query(
 		`SELECT id, order_id, amount, method, reference, paid_at, created_at
 		 FROM payments WHERE order_id = $1 ORDER BY paid_at ASC`, orderID,
 	)

@@ -10,7 +10,7 @@ import (
 )
 
 // Setup initializes the Gin router with all routes and middleware.
-func Setup(db *sql.DB, cfg *config.Config) *gin.Engine {
+func Setup(getDB func() *sql.DB, cfg *config.Config) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
 	middleware.InitAuth(cfg.AuthSecret)
@@ -24,16 +24,16 @@ func Setup(db *sql.DB, cfg *config.Config) *gin.Engine {
 	r.Use(middleware.RateLimit(cfg.RateLimitRPS, cfg.RateLimitBurst))
 
 	// Initialize handlers
-	healthHandler := handlers.NewHealthHandler(db)
-	customerHandler := handlers.NewCustomerHandler(db)
-	orderHandler := handlers.NewOrderHandler(db)
-	serviceHandler := handlers.NewServiceHandler(db)
-	paymentHandler := handlers.NewPaymentHandler(db)
-	invoiceHandler := handlers.NewInvoiceHandler(db)
-	authHandler := handlers.NewAuthHandler(db)
-	userHandler := handlers.NewUserHandler(db)
-	reportHandler := handlers.NewReportHandler(db)
-	dashboardHandler := handlers.NewDashboardHandler(db)
+	healthHandler := handlers.NewHealthHandler(getDB)
+	customerHandler := handlers.NewCustomerHandler(getDB)
+	orderHandler := handlers.NewOrderHandler(getDB)
+	serviceHandler := handlers.NewServiceHandler(getDB)
+	paymentHandler := handlers.NewPaymentHandler(getDB)
+	invoiceHandler := handlers.NewInvoiceHandler(getDB)
+	authHandler := handlers.NewAuthHandler(getDB)
+	userHandler := handlers.NewUserHandler(getDB)
+	reportHandler := handlers.NewReportHandler(getDB)
+	dashboardHandler := handlers.NewDashboardHandler(getDB)
 
 	// API v1 routes
 	v1 := r.Group("/api/v1")
@@ -69,12 +69,12 @@ func Setup(db *sql.DB, cfg *config.Config) *gin.Engine {
 			protected.PATCH("/orders/:id/cancel", orderHandler.Cancel)
 
 			// Payments
-			protected.POST("/orders/:orderId/payments", paymentHandler.Create)
-			protected.GET("/orders/:orderId/payments", paymentHandler.ListByOrder)
+			protected.POST("/orders/:id/payments", paymentHandler.Create)
+			protected.GET("/orders/:id/payments", paymentHandler.ListByOrder)
 
 			// Invoices
-			protected.GET("/orders/:orderId/invoice", invoiceHandler.GetByOrder)
-			protected.PATCH("/orders/:orderId/invoice/printed", invoiceHandler.MarkPrinted)
+			protected.GET("/orders/:id/invoice", invoiceHandler.GetByOrder)
+			protected.PATCH("/orders/:id/invoice/printed", invoiceHandler.MarkPrinted)
 
 			// Services CRUD
 			protected.GET("/services", serviceHandler.List)

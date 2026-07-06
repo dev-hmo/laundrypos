@@ -11,11 +11,11 @@ import (
 )
 
 type AuthHandler struct {
-	db *sql.DB
+	getDB func() *sql.DB
 }
 
-func NewAuthHandler(db *sql.DB) *AuthHandler {
-	return &AuthHandler{db: db}
+func NewAuthHandler(db func() *sql.DB) *AuthHandler {
+	return &AuthHandler{getDB: db}
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -27,7 +27,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	var user models.User
 	var passwordHash string
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`SELECT id, email, password_hash, name, role, is_active, created_at, updated_at
 		 FROM users WHERE email = $1 AND is_active = TRUE`,
 		req.Email,
@@ -61,7 +61,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) Me(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	var user models.User
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`SELECT id, email, name, role, is_active, created_at, updated_at
 		 FROM users WHERE id = $1`,
 		userID,

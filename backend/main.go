@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -16,6 +17,12 @@ import (
 )
 
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("panic recovered", "error", r)
+		}
+	}()
+
 	cfg := config.Load()
 	if err := cfg.Validate(); err != nil {
 		slog.Error("invalid configuration", "error", err)
@@ -29,24 +36,16 @@ func main() {
 	slog.Info("starting server", "port", cfg.Port, "log_level", cfg.LogLevel)
 
 	var (
-		db  *sql.DB
-		err error
+		db   *sql.DB
+		dbMu sync.RWMutex
 	)
-	db, err = database.Connect(cfg.DatabaseURL)
-	if err != nil {
-		slog.Error("failed to connect to database, starting without DB", "error", err)
-	} else {
-		defer db.Close()
-		slog.Info("connected to PostgreSQL")
-
-		if err := database.RunMigrations(db, cfg.MigrationsDir); err != nil {
-			slog.Error("failed to run migrations", "error", err)
-		} else {
-			slog.Info("migrations complete")
-		}
+	getDB := func() *sql.DB {
+		dbMu.RLock()
+		defer dbMu.RUnlock()
+		return db
 	}
 
-	r := router.Setup(db, cfg)
+	r := router.Setup(getDB, cfg)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
@@ -64,6 +63,25 @@ func main() {
 		}
 	}()
 
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		conn, err := database.Connect(cfg.DatabaseURL)
+		if err != nil {
+			slog.Error("failed to connect to database, running without DB", "error", err)
+			return
+		}
+		dbMu.Lock()
+		db = conn
+		dbMu.Unlock()
+		slog.Info("connected to PostgreSQL")
+
+		if err := database.RunMigrations(conn, cfg.MigrationsDir); err != nil {
+			slog.Error("failed to run migrations", "error", err)
+		} else {
+			slog.Info("migrations complete")
+		}
+	}()
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -77,6 +95,12 @@ func main() {
 		slog.Error("server forced to shutdown", "error", err)
 		os.Exit(1)
 	}
+
+	dbMu.RLock()
+	if db != nil {
+		db.Close()
+	}
+	dbMu.RUnlock()
 
 	slog.Info("server exited cleanly")
 }

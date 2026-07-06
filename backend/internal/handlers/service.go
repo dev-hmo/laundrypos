@@ -9,15 +9,15 @@ import (
 )
 
 type ServiceHandler struct {
-	db *sql.DB
+	getDB func() *sql.DB
 }
 
-func NewServiceHandler(db *sql.DB) *ServiceHandler {
-	return &ServiceHandler{db: db}
+func NewServiceHandler(db func() *sql.DB) *ServiceHandler {
+	return &ServiceHandler{getDB: db}
 }
 
 func (h *ServiceHandler) List(c *gin.Context) {
-	rows, err := h.db.Query(
+	rows, err := h.getDB().Query(
 		`SELECT id, service_id, name, description, unit, unit_price, is_active, created_at
 		 FROM service_catalog ORDER BY name ASC`,
 	)
@@ -48,7 +48,7 @@ func (h *ServiceHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 
 	var s models.Service
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`SELECT id, service_id, name, description, unit, unit_price, is_active, created_at
 		 FROM service_catalog WHERE id = $1`, id,
 	).Scan(&s.ID, &s.ServiceID, &s.Name, &s.Description, &s.Unit, &s.UnitPrice, &s.IsActive, &s.CreatedAt)
@@ -72,7 +72,7 @@ func (h *ServiceHandler) Create(c *gin.Context) {
 	}
 
 	var s models.Service
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`INSERT INTO service_catalog (service_id, name, description, unit, unit_price)
 		 VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id, service_id, name, description, unit, unit_price, is_active, created_at`,
@@ -130,7 +130,7 @@ func (h *ServiceHandler) Update(c *gin.Context) {
 	args = append(args, id)
 
 	var s models.Service
-	err := h.db.QueryRow(query, args...).Scan(&s.ID, &s.ServiceID, &s.Name, &s.Description, &s.Unit, &s.UnitPrice, &s.IsActive, &s.CreatedAt)
+	err := h.getDB().QueryRow(query, args...).Scan(&s.ID, &s.ServiceID, &s.Name, &s.Description, &s.Unit, &s.UnitPrice, &s.IsActive, &s.CreatedAt)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Service not found"})
 		return
@@ -146,7 +146,7 @@ func (h *ServiceHandler) Update(c *gin.Context) {
 func (h *ServiceHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 
-	result, err := h.db.Exec(`DELETE FROM service_catalog WHERE id = $1`, id)
+	result, err := h.getDB().Exec(`DELETE FROM service_catalog WHERE id = $1`, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete service: " + err.Error()})
 		return

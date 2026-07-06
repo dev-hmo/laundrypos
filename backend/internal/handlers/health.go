@@ -9,19 +9,19 @@ import (
 
 // HealthHandler provides system health check endpoints.
 type HealthHandler struct {
-	db *sql.DB
+	getDB func() *sql.DB
 }
 
 // NewHealthHandler creates a new health handler.
-func NewHealthHandler(db *sql.DB) *HealthHandler {
-	return &HealthHandler{db: db}
+func NewHealthHandler(db func() *sql.DB) *HealthHandler {
+	return &HealthHandler{getDB: db}
 }
 
 // Check returns the health status of the API and database.
 func (h *HealthHandler) Check(c *gin.Context) {
 	dbStatus := "up"
-	if h.db != nil {
-		err := h.db.Ping()
+	if h.getDB() != nil {
+		err := h.getDB().Ping()
 		if err != nil {
 			dbStatus = "down"
 		}

@@ -10,15 +10,15 @@ import (
 )
 
 type UserHandler struct {
-	db *sql.DB
+	getDB func() *sql.DB
 }
 
-func NewUserHandler(db *sql.DB) *UserHandler {
-	return &UserHandler{db: db}
+func NewUserHandler(db func() *sql.DB) *UserHandler {
+	return &UserHandler{getDB: db}
 }
 
 func (h *UserHandler) List(c *gin.Context) {
-	rows, err := h.db.Query(
+	rows, err := h.getDB().Query(
 		`SELECT id, email, name, role, is_active, created_at, updated_at
 		 FROM users ORDER BY name ASC`,
 	)
@@ -48,7 +48,7 @@ func (h *UserHandler) List(c *gin.Context) {
 func (h *UserHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	var u models.User
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`SELECT id, email, name, role, is_active, created_at, updated_at
 		 FROM users WHERE id = $1`, id,
 	).Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
@@ -77,7 +77,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 	}
 
 	var u models.User
-	err = h.db.QueryRow(
+	err = h.getDB().QueryRow(
 		`INSERT INTO users (email, password_hash, name, role)
 		 VALUES ($1, $2, $3, $4)
 		 RETURNING id, email, name, role, is_active, created_at, updated_at`,
@@ -130,7 +130,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 	args = append(args, id)
 
 	var u models.User
-	err := h.db.QueryRow(query, args...).Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
+	err := h.getDB().QueryRow(query, args...).Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -146,7 +146,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 func (h *UserHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 
-	result, err := h.db.Exec(`UPDATE users SET is_active = FALSE WHERE id = $1`, id)
+	result, err := h.getDB().Exec(`UPDATE users SET is_active = FALSE WHERE id = $1`, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to deactivate user: " + err.Error()})
 		return

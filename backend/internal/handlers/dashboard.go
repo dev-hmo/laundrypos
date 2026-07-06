@@ -9,11 +9,11 @@ import (
 )
 
 type DashboardHandler struct {
-	db *sql.DB
+	getDB func() *sql.DB
 }
 
-func NewDashboardHandler(db *sql.DB) *DashboardHandler {
-	return &DashboardHandler{db: db}
+func NewDashboardHandler(db func() *sql.DB) *DashboardHandler {
+	return &DashboardHandler{getDB: db}
 }
 
 func (h *DashboardHandler) Stats(c *gin.Context) {
@@ -26,10 +26,10 @@ func (h *DashboardHandler) Stats(c *gin.Context) {
 		TotalCustomers int     `json:"total_customers"`
 	}
 
-	h.db.QueryRow(`SELECT COUNT(*) FROM orders WHERE created_at::date = $1`, today).Scan(&stats.OrdersToday)
-	h.db.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM payments WHERE paid_at::date = $1`, today).Scan(&stats.RevenueToday)
-	h.db.QueryRow(`SELECT COUNT(*) FROM orders WHERE status NOT IN ('Delivered', 'Cancelled')`).Scan(&stats.PendingOrders)
-	h.db.QueryRow(`SELECT COUNT(*) FROM customers`).Scan(&stats.TotalCustomers)
+	h.getDB().QueryRow(`SELECT COUNT(*) FROM orders WHERE created_at::date = $1`, today).Scan(&stats.OrdersToday)
+	h.getDB().QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM payments WHERE paid_at::date = $1`, today).Scan(&stats.RevenueToday)
+	h.getDB().QueryRow(`SELECT COUNT(*) FROM orders WHERE status NOT IN ('Delivered', 'Cancelled')`).Scan(&stats.PendingOrders)
+	h.getDB().QueryRow(`SELECT COUNT(*) FROM customers`).Scan(&stats.TotalCustomers)
 
 	c.JSON(http.StatusOK, stats)
 }

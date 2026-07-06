@@ -11,12 +11,12 @@ import (
 
 // CustomerHandler handles customer-related API requests.
 type CustomerHandler struct {
-	db *sql.DB
+	getDB func() *sql.DB
 }
 
 // NewCustomerHandler creates a new customer handler.
-func NewCustomerHandler(db *sql.DB) *CustomerHandler {
-	return &CustomerHandler{db: db}
+func NewCustomerHandler(db func() *sql.DB) *CustomerHandler {
+	return &CustomerHandler{getDB: db}
 }
 
 // Create handles POST /api/v1/customers
@@ -28,7 +28,7 @@ func (h *CustomerHandler) Create(c *gin.Context) {
 	}
 
 	var customer models.Customer
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`INSERT INTO customers (name, phone, email, preferences)
 		 VALUES ($1, $2, $3, $4)
 		 RETURNING id, name, phone, email, preferences, created_at, updated_at`,
@@ -71,7 +71,7 @@ func (h *CustomerHandler) ListAll(c *gin.Context) {
 	var err error
 	if query != "" {
 		searchPattern := "%" + query + "%"
-		rows, err = h.db.Query(
+		rows, err = h.getDB().Query(
 			`SELECT id, name, phone, email, preferences, created_at, updated_at
 			 FROM customers
 			 WHERE phone ILIKE $1 OR name ILIKE $1 OR email ILIKE $1
@@ -80,7 +80,7 @@ func (h *CustomerHandler) ListAll(c *gin.Context) {
 			searchPattern, limitInt, offsetInt,
 		)
 	} else {
-		rows, err = h.db.Query(
+		rows, err = h.getDB().Query(
 			`SELECT id, name, phone, email, preferences, created_at, updated_at
 			 FROM customers
 			 ORDER BY name ASC
@@ -114,12 +114,12 @@ func (h *CustomerHandler) ListAll(c *gin.Context) {
 	var totalCount int
 	if query != "" {
 		searchPattern := "%" + query + "%"
-		h.db.QueryRow(
+		h.getDB().QueryRow(
 			`SELECT COUNT(*) FROM customers WHERE phone ILIKE $1 OR name ILIKE $1 OR email ILIKE $1`,
 			searchPattern,
 		).Scan(&totalCount)
 	} else {
-		h.db.QueryRow(`SELECT COUNT(*) FROM customers`).Scan(&totalCount)
+		h.getDB().QueryRow(`SELECT COUNT(*) FROM customers`).Scan(&totalCount)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"customers": customers, "count": totalCount})
@@ -130,7 +130,7 @@ func (h *CustomerHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 
 	var cust models.Customer
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`SELECT id, name, phone, email, preferences, created_at, updated_at
 		 FROM customers WHERE id = $1`, id,
 	).Scan(&cust.ID, &cust.Name, &cust.Phone, &cust.Email, &cust.Preferences, &cust.CreatedAt, &cust.UpdatedAt)
@@ -186,7 +186,7 @@ func (h *CustomerHandler) Update(c *gin.Context) {
 	args = append(args, id)
 
 	var cust models.Customer
-	err := h.db.QueryRow(query, args...).Scan(
+	err := h.getDB().QueryRow(query, args...).Scan(
 		&cust.ID, &cust.Name, &cust.Phone, &cust.Email, &cust.Preferences, &cust.CreatedAt, &cust.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -205,7 +205,7 @@ func (h *CustomerHandler) Update(c *gin.Context) {
 func (h *CustomerHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 
-	result, err := h.db.Exec(`DELETE FROM customers WHERE id = $1`, id)
+	result, err := h.getDB().Exec(`DELETE FROM customers WHERE id = $1`, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete customer: " + err.Error()})
 		return
@@ -230,7 +230,7 @@ func (h *CustomerHandler) Search(c *gin.Context) {
 
 	searchPattern := "%" + query + "%"
 
-	rows, err := h.db.Query(
+	rows, err := h.getDB().Query(
 		`SELECT id, name, phone, email, preferences, created_at, updated_at
 		 FROM customers
 		 WHERE phone ILIKE $1 OR name ILIKE $1

@@ -9,15 +9,15 @@ import (
 )
 
 type PaymentHandler struct {
-	db *sql.DB
+	getDB func() *sql.DB
 }
 
-func NewPaymentHandler(db *sql.DB) *PaymentHandler {
-	return &PaymentHandler{db: db}
+func NewPaymentHandler(db func() *sql.DB) *PaymentHandler {
+	return &PaymentHandler{getDB: db}
 }
 
 func (h *PaymentHandler) Create(c *gin.Context) {
-	orderID := c.Param("orderId")
+	orderID := c.Param("id")
 
 	var req models.CreatePaymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -26,7 +26,7 @@ func (h *PaymentHandler) Create(c *gin.Context) {
 	}
 
 	var p models.Payment
-	err := h.db.QueryRow(
+	err := h.getDB().QueryRow(
 		`INSERT INTO payments (order_id, amount, method, reference)
 		 VALUES ($1, $2, $3, $4)
 		 RETURNING id, order_id, amount, method, reference, paid_at, created_at`,
@@ -41,9 +41,9 @@ func (h *PaymentHandler) Create(c *gin.Context) {
 }
 
 func (h *PaymentHandler) ListByOrder(c *gin.Context) {
-	orderID := c.Param("orderId")
+	orderID := c.Param("id")
 
-	rows, err := h.db.Query(
+	rows, err := h.getDB().Query(
 		`SELECT id, order_id, amount, method, reference, paid_at, created_at
 		 FROM payments WHERE order_id = $1 ORDER BY paid_at ASC`,
 		orderID,
