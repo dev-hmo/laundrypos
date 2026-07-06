@@ -19,6 +19,7 @@ func NewReportHandler(db func() *sql.DB) *ReportHandler {
 }
 
 func (h *ReportHandler) DailySummary(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	date := c.DefaultQuery("date", time.Now().Format("2006-01-02"))
 
 	var summary models.DailySummary
@@ -80,6 +81,7 @@ func (h *ReportHandler) DailySummary(c *gin.Context) {
 }
 
 func (h *ReportHandler) RevenueByRange(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	from := c.Query("from")
 	to := c.Query("to")
 
@@ -122,6 +124,7 @@ func (h *ReportHandler) RevenueByRange(c *gin.Context) {
 }
 
 func (h *ReportHandler) ServiceBreakdown(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	from := c.Query("from")
 	to := c.Query("to")
 
@@ -167,6 +170,7 @@ func (h *ReportHandler) ServiceBreakdown(c *gin.Context) {
 }
 
 func (h *ReportHandler) TopCustomers(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	from := c.Query("from")
 	to := c.Query("to")
 	limit := c.DefaultQuery("limit", "10")

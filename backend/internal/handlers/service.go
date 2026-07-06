@@ -17,6 +17,7 @@ func NewServiceHandler(db func() *sql.DB) *ServiceHandler {
 }
 
 func (h *ServiceHandler) List(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	rows, err := h.getDB().Query(
 		`SELECT id, service_id, name, description, unit, unit_price, is_active, created_at
 		 FROM service_catalog ORDER BY name ASC`,
@@ -45,6 +46,7 @@ func (h *ServiceHandler) List(c *gin.Context) {
 }
 
 func (h *ServiceHandler) GetByID(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	id := c.Param("id")
 
 	var s models.Service
@@ -65,6 +67,7 @@ func (h *ServiceHandler) GetByID(c *gin.Context) {
 }
 
 func (h *ServiceHandler) Create(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	var req models.CreateServiceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
@@ -87,6 +90,7 @@ func (h *ServiceHandler) Create(c *gin.Context) {
 }
 
 func (h *ServiceHandler) Update(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	id := c.Param("id")
 
 	var req models.UpdateServiceRequest
@@ -144,6 +148,7 @@ func (h *ServiceHandler) Update(c *gin.Context) {
 }
 
 func (h *ServiceHandler) Delete(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	id := c.Param("id")
 
 	result, err := h.getDB().Exec(`DELETE FROM service_catalog WHERE id = $1`, id)

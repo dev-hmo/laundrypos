@@ -19,6 +19,7 @@ func NewInvoiceHandler(db func() *sql.DB) *InvoiceHandler {
 }
 
 func (h *InvoiceHandler) GetByOrder(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	orderID := c.Param("id")
 
 	var invoice models.Invoice
@@ -56,6 +57,7 @@ func (h *InvoiceHandler) GetByOrder(c *gin.Context) {
 }
 
 func (h *InvoiceHandler) MarkPrinted(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	orderID := c.Param("id")
 
 	result, err := h.getDB().Exec(`UPDATE invoices SET printed = TRUE WHERE order_id = $1`, orderID)

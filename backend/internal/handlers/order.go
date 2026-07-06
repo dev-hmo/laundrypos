@@ -24,6 +24,7 @@ func NewOrderHandler(db func() *sql.DB) *OrderHandler {
 // Create handles POST /api/v1/orders
 // Creates an order with its line items in a single transaction.
 func (h *OrderHandler) Create(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	var req models.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
@@ -114,6 +115,7 @@ func (h *OrderHandler) Create(c *gin.Context) {
 // ListActive handles GET /api/v1/orders
 // Returns active orders with pagination and optional status filter.
 func (h *OrderHandler) ListActive(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	statusFilter := c.Query("status")
 	limit := c.DefaultQuery("limit", "50")
 	offset := c.DefaultQuery("offset", "0")
@@ -226,6 +228,7 @@ func (h *OrderHandler) ListActive(c *gin.Context) {
 
 // UpdateStatus handles PATCH /api/v1/orders/:id/status
 func (h *OrderHandler) UpdateStatus(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	orderID := c.Param("id")
 
 	var req models.UpdateStatusRequest
@@ -262,6 +265,7 @@ func (h *OrderHandler) UpdateStatus(c *gin.Context) {
 
 // GetByID handles GET /api/v1/orders/:id
 func (h *OrderHandler) GetByID(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	id := c.Param("id")
 
 	var order models.Order
@@ -310,6 +314,7 @@ func (h *OrderHandler) GetByID(c *gin.Context) {
 
 // Update handles PUT /api/v1/orders/:id
 func (h *OrderHandler) Update(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	id := c.Param("id")
 
 	var req models.UpdateOrderRequest
@@ -361,6 +366,7 @@ func (h *OrderHandler) Update(c *gin.Context) {
 
 // Cancel handles PATCH /api/v1/orders/:id/cancel
 func (h *OrderHandler) Cancel(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	id := c.Param("id")
 
 	var order models.Order
@@ -386,6 +392,7 @@ func (h *OrderHandler) Cancel(c *gin.Context) {
 
 // ListAll handles GET /api/v1/orders/all
 func (h *OrderHandler) ListAll(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	statusFilter := c.Query("status")
 	from := c.Query("from")
 	to := c.Query("to")

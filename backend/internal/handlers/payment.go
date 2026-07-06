@@ -17,6 +17,7 @@ func NewPaymentHandler(db func() *sql.DB) *PaymentHandler {
 }
 
 func (h *PaymentHandler) Create(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	orderID := c.Param("id")
 
 	var req models.CreatePaymentRequest
@@ -41,6 +42,7 @@ func (h *PaymentHandler) Create(c *gin.Context) {
 }
 
 func (h *PaymentHandler) ListByOrder(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	orderID := c.Param("id")
 
 	rows, err := h.getDB().Query(

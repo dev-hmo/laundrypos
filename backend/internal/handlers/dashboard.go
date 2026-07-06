@@ -17,6 +17,7 @@ func NewDashboardHandler(db func() *sql.DB) *DashboardHandler {
 }
 
 func (h *DashboardHandler) Stats(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	today := time.Now().Format("2006-01-02")
 
 	var stats struct {

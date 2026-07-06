@@ -18,6 +18,7 @@ func NewUserHandler(db func() *sql.DB) *UserHandler {
 }
 
 func (h *UserHandler) List(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	rows, err := h.getDB().Query(
 		`SELECT id, email, name, role, is_active, created_at, updated_at
 		 FROM users ORDER BY name ASC`,
@@ -46,6 +47,7 @@ func (h *UserHandler) List(c *gin.Context) {
 }
 
 func (h *UserHandler) GetByID(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	id := c.Param("id")
 	var u models.User
 	err := h.getDB().QueryRow(
@@ -64,6 +66,7 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 }
 
 func (h *UserHandler) Create(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	var req models.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
@@ -92,6 +95,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 }
 
 func (h *UserHandler) Update(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	id := c.Param("id")
 
 	var req models.UpdateUserRequest
@@ -144,6 +148,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 }
 
 func (h *UserHandler) Delete(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	id := c.Param("id")
 
 	result, err := h.getDB().Exec(`UPDATE users SET is_active = FALSE WHERE id = $1`, id)

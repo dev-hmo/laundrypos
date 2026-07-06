@@ -21,6 +21,7 @@ func NewCustomerHandler(db func() *sql.DB) *CustomerHandler {
 
 // Create handles POST /api/v1/customers
 func (h *CustomerHandler) Create(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	var req models.CreateCustomerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
@@ -52,6 +53,7 @@ func (h *CustomerHandler) Create(c *gin.Context) {
 
 // ListAll handles GET /api/v1/customers
 func (h *CustomerHandler) ListAll(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	query := c.Query("q")
 	limit := c.DefaultQuery("limit", "50")
 	offset := c.DefaultQuery("offset", "0")
@@ -127,6 +129,7 @@ func (h *CustomerHandler) ListAll(c *gin.Context) {
 
 // GetByID handles GET /api/v1/customers/:id
 func (h *CustomerHandler) GetByID(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	id := c.Param("id")
 
 	var cust models.Customer
@@ -148,6 +151,7 @@ func (h *CustomerHandler) GetByID(c *gin.Context) {
 
 // Update handles PUT /api/v1/customers/:id
 func (h *CustomerHandler) Update(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	id := c.Param("id")
 
 	var req models.UpdateCustomerRequest
@@ -203,6 +207,7 @@ func (h *CustomerHandler) Update(c *gin.Context) {
 
 // Delete handles DELETE /api/v1/customers/:id
 func (h *CustomerHandler) Delete(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	id := c.Param("id")
 
 	result, err := h.getDB().Exec(`DELETE FROM customers WHERE id = $1`, id)
@@ -222,6 +227,7 @@ func (h *CustomerHandler) Delete(c *gin.Context) {
 
 // Search handles GET /api/v1/customers/search?q=...
 func (h *CustomerHandler) Search(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	query := c.Query("q")
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Search query 'q' is required"})

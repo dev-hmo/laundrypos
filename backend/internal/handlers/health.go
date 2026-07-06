@@ -7,6 +7,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func requireDB(getDB func() *sql.DB, c *gin.Context) bool {
+	if getDB() == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Database not available"})
+		return false
+	}
+	return true
+}
+
+
 // HealthHandler provides system health check endpoints.
 type HealthHandler struct {
 	getDB func() *sql.DB

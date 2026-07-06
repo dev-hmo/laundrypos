@@ -19,6 +19,7 @@ func NewAuthHandler(db func() *sql.DB) *AuthHandler {
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
@@ -59,6 +60,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 func (h *AuthHandler) Me(c *gin.Context) {
+	if !requireDB(h.getDB, c) { return }
 	userID, _ := c.Get("user_id")
 	var user models.User
 	err := h.getDB().QueryRow(
