@@ -4,7 +4,7 @@
 # ============================================================
 
 # --- Stage 1: Build ---
-FROM golang:1.26-alpine AS builder
+FROM golang:1.26-alpine3.23 AS builder
 
 RUN apk add --no-cache git ca-certificates tzdata
 
@@ -26,7 +26,7 @@ RUN go mod tidy && \
     ./cmd/server
 
 # --- Stage 2: Runtime ---
-FROM alpine:3.20
+FROM alpine:3.23
 
 RUN apk add --no-cache ca-certificates tzdata
 
