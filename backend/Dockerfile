@@ -26,7 +26,7 @@ RUN go mod tidy && \
     .
 
 # --- Stage 2: Runtime ---
-FROM alpine:3.23
+FROM alpine:3.20
 
 RUN apk add --no-cache ca-certificates tzdata
 
@@ -35,4 +35,4 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder /build/server .
 
-ENTRYPOINT ["/app/server"]
+CMD ["/app/server"]
