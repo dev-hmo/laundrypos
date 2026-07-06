@@ -45,7 +45,7 @@ fi
 
 # ─── Retention: purge backups older than N days ──────────
 find "$BACKUP_DIR" -name "${DB_NAME}_*.dump" -type f -mtime +"$RETENTION_DAYS" -delete
-find "$BACKUP_DIR" -name "${DB_NAME}_*.gpg"  -type f -mtime +"$RETURN_DAYS" -delete
+find "$BACKUP_DIR" -name "${DB_NAME}_*.gpg"  -type f -mtime +"$RETENTION_DAYS" -delete
 echo "✓ Purged backups older than ${RETENTION_DAYS} days"
 
 # ─── Healthcheck / monitoring ping (optional) ────────────

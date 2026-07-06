@@ -47,7 +47,7 @@ export function CartPanel() {
       tax_amount: getTax(),
       total_amount: getGrandTotal(),
       items: items.map((item) => ({
-        service_type: item.serviceName,
+        service_type: item.serviceType,
         weight_kg: item.weightKg,
         quantity: item.quantity,
         unit_price: item.unitPrice,

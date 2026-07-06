@@ -4,6 +4,8 @@
 services:
   postgres:
     restart: always
+    environment:
+      POSTGRES_INITDB_ARGS: "-c log_statement=all -c log_duration=on"
     deploy:
       resources:
         limits:
@@ -14,6 +16,8 @@ services:
           memory: 256M
     volumes:
       - pgdata_prod:/var/lib/postgresql/data
+    networks:
+      - laundry-network-prod
 
   api:
     restart: always
@@ -21,6 +25,7 @@ services:
       LOG_LEVEL: info
       RATE_LIMIT_RPS: "100"
       RATE_LIMIT_BURST: "200"
+      CORS_ORIGINS: "https://yourdomain.com"
     deploy:
       resources:
         limits:
@@ -29,6 +34,27 @@ services:
         reservations:
           cpus: "0.5"
           memory: 128M
+    networks:
+      - laundry-network-prod
+
+  frontend:
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: "https://api.yourdomain.com"
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 256M
+        reservations:
+          cpus: "0.5"
+          memory: 128M
+    networks:
+      - laundry-network-prod
+
+networks:
+  laundry-network-prod:
+    driver: bridge
 
 volumes:
   pgdata_prod:

@@ -1,0 +1,40 @@
+# Dependencies & Build
+node_modules/
+.next/
+dist/
+build/
+
+# Version control
+.git
+.gitignore
+
+# Documentation
+*.md
+LICENSE
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+tmp/
+*.tmp
+*.log
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Test & dev
+__tests__/
+*.test.ts
+*.test.tsx
+.env.local
+.env.*.local
