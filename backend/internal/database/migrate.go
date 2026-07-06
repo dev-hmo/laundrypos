@@ -2,30 +2,32 @@ package database
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"sort"
+	"strings"
 )
 
-func RunMigrations(db *sql.DB, migrationsDir string) error {
-	entries, err := os.ReadDir(migrationsDir)
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
+
+func RunMigrations(db *sql.DB, _ string) error {
+	entries, err := migrationsFS.ReadDir("migrations")
 	if err != nil {
 		return fmt.Errorf("read migrations dir: %w", err)
 	}
 
 	var files []string
 	for _, e := range entries {
-		if !e.IsDir() && filepath.Ext(e.Name()) == ".sql" {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".sql") {
 			files = append(files, e.Name())
 		}
 	}
 	sort.Strings(files)
 
 	for _, f := range files {
-		path := filepath.Join(migrationsDir, f)
-		content, err := os.ReadFile(path)
+		content, err := migrationsFS.ReadFile("migrations/" + f)
 		if err != nil {
 			return fmt.Errorf("read migration %s: %w", f, err)
 		}
