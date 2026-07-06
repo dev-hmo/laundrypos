@@ -8,6 +8,7 @@ services:
     plan: free
     region: oregon
     healthCheckPath: /api/v1/health
+    autoDeploy: true
     envVars:
       - key: DATABASE_URL
         value: postgres://app_user:app_user_pass_2024@dpg-d95qd9ojs32c7388a6o0-a.oregon-postgres.render.com/laundry_oms
