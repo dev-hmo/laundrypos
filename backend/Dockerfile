@@ -23,7 +23,7 @@ RUN go mod tidy && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-w -s" \
     -o /build/server \
-    ./cmd/server
+    .
 
 # --- Stage 2: Runtime ---
 FROM alpine:3.23
@@ -37,7 +37,6 @@ WORKDIR /app
 
 # Copy binary from builder
 COPY --from=builder /build/server .
-COPY --from=builder /build/migrations ./migrations
 
 # Set ownership
 RUN chown -R appuser:appgroup /app

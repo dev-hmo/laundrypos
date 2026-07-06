@@ -1,7 +1,7 @@
 services:
   - type: web
     name: laundry-api
-    runtime: go
+    runtime: docker
     repo: https://github.com/dev-hmo/laundrypos
     branch: main
     rootDir: backend
