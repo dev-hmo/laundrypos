@@ -1,13 +1,15 @@
 services:
   - type: web
     name: laundry-api
-    runtime: docker
+    runtime: go
     repo: https://github.com/dev-hmo/laundrypos
     branch: main
     rootDir: backend
     plan: free
     region: oregon
     healthCheckPath: /api/v1/health
+    buildCommand: go build -o server ./cmd/server
+    startCommand: ./server
     envVars:
       - key: DATABASE_URL
         value: postgres://app_user:app_user_pass_2024@dpg-d95qd9ojs32c7388a6o0-a.oregon-postgres.render.com/laundry_oms
