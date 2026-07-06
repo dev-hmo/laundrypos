@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"time"
@@ -22,7 +23,9 @@ func Connect(databaseURL string) (*sql.DB, error) {
 			continue
 		}
 
-		err = db.Ping()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err = db.PingContext(ctx)
+		cancel()
 		if err != nil {
 			log.Printf("Attempt %d: Failed to ping database: %v", i+1, err)
 			time.Sleep(2 * time.Second)

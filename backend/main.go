@@ -1,25 +1,82 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"context"
+	"database/sql"
+	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/laundry-oms/backend/internal/config"
+	"github.com/laundry-oms/backend/internal/database"
+	"github.com/laundry-oms/backend/internal/router"
 )
 
 func main() {
-	http.HandleFunc("/api/v1/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"status":"ok","database":"disconnected"}`)
-	})
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		slog.Error("invalid configuration", "error", err)
+		os.Exit(1)
 	}
 
-	log.Printf("starting server on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatalf("server failed: %v", err)
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: cfg.LogLevelSlog(),
+	})))
+
+	slog.Info("starting server", "port", cfg.Port, "log_level", cfg.LogLevel)
+
+	var (
+		db  *sql.DB
+		err error
+	)
+	db, err = database.Connect(cfg.DatabaseURL)
+	if err != nil {
+		slog.Error("failed to connect to database, starting without DB", "error", err)
+	} else {
+		defer db.Close()
+		slog.Info("connected to PostgreSQL")
+
+		if err := database.RunMigrations(db, cfg.MigrationsDir); err != nil {
+			slog.Error("failed to run migrations", "error", err)
+		} else {
+			slog.Info("migrations complete")
+		}
 	}
+
+	r := router.Setup(db, cfg)
+
+	srv := &http.Server{
+		Addr:         ":" + cfg.Port,
+		Handler:      r,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	go func() {
+		slog.Info("server listening", "addr", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	slog.Info("shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		slog.Error("server forced to shutdown", "error", err)
+		os.Exit(1)
+	}
+
+	slog.Info("server exited cleanly")
 }
