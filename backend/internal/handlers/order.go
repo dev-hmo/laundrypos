@@ -259,3 +259,219 @@ func (h *OrderHandler) UpdateStatus(c *gin.Context) {
 
 	c.JSON(http.StatusOK, order)
 }
+
+// GetByID handles GET /api/v1/orders/:id
+func (h *OrderHandler) GetByID(c *gin.Context) {
+	id := c.Param("id")
+
+	var order models.Order
+	err := h.db.QueryRow(
+		`SELECT o.id, o.customer_id, c.name, c.phone, o.status, o.total_amount, o.tax_amount,
+		        o.promised_date, o.notes, o.created_at, o.updated_at
+		 FROM orders o
+		 JOIN customers c ON c.id = o.customer_id
+		 WHERE o.id = $1`, id,
+	).Scan(
+		&order.ID, &order.CustomerID, &order.CustomerName, &order.CustomerPhone,
+		&order.Status, &order.TotalAmount, &order.TaxAmount,
+		&order.PromisedDate, &order.Notes, &order.CreatedAt, &order.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch order: " + err.Error()})
+		return
+	}
+
+	itemRows, err := h.db.Query(
+		`SELECT id, order_id, service_type, weight_kg, quantity, unit_price, subtotal
+		 FROM order_items WHERE order_id = $1`, id,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch order items: " + err.Error()})
+		return
+	}
+	defer itemRows.Close()
+
+	order.Items = []models.OrderItem{}
+	for itemRows.Next() {
+		var item models.OrderItem
+		if err := itemRows.Scan(&item.ID, &item.OrderID, &item.ServiceType, &item.WeightKg, &item.Quantity, &item.UnitPrice, &item.Subtotal); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan order item: " + err.Error()})
+			return
+		}
+		order.Items = append(order.Items, item)
+	}
+
+	c.JSON(http.StatusOK, order)
+}
+
+// Update handles PUT /api/v1/orders/:id
+func (h *OrderHandler) Update(c *gin.Context) {
+	id := c.Param("id")
+
+	var req models.UpdateOrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+
+	query := `UPDATE orders SET `
+	args := []interface{}{}
+	argIdx := 1
+
+	if req.PromisedDate != nil {
+		query += `promised_date = $` + string(rune('0'+argIdx)) + `, `
+		args = append(args, *req.PromisedDate)
+		argIdx++
+	}
+	if req.Notes != nil {
+		query += `notes = $` + string(rune('0'+argIdx)) + `, `
+		args = append(args, *req.Notes)
+		argIdx++
+	}
+
+	if len(args) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+		return
+	}
+
+	query = query[:len(query)-2]
+	query += ` WHERE id = $` + string(rune('0'+argIdx)) + ` RETURNING id, customer_id, status, total_amount, tax_amount, promised_date, notes, created_at, updated_at`
+	args = append(args, id)
+
+	var order models.Order
+	err := h.db.QueryRow(query, args...).Scan(
+		&order.ID, &order.CustomerID, &order.Status, &order.TotalAmount, &order.TaxAmount,
+		&order.PromisedDate, &order.Notes, &order.CreatedAt, &order.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, order)
+}
+
+// Cancel handles PATCH /api/v1/orders/:id/cancel
+func (h *OrderHandler) Cancel(c *gin.Context) {
+	id := c.Param("id")
+
+	var order models.Order
+	err := h.db.QueryRow(
+		`UPDATE orders SET status = 'Cancelled' WHERE id = $1 AND status NOT IN ('Delivered', 'Cancelled')
+		 RETURNING id, customer_id, status, total_amount, tax_amount, promised_date, notes, created_at, updated_at`,
+		id,
+	).Scan(
+		&order.ID, &order.CustomerID, &order.Status, &order.TotalAmount, &order.TaxAmount,
+		&order.PromisedDate, &order.Notes, &order.CreatedAt, &order.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found or already delivered/cancelled"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel order: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, order)
+}
+
+// ListAll handles GET /api/v1/orders/all
+func (h *OrderHandler) ListAll(c *gin.Context) {
+	statusFilter := c.Query("status")
+	from := c.Query("from")
+	to := c.Query("to")
+	customerID := c.Query("customer_id")
+	limit := c.DefaultQuery("limit", "50")
+	offset := c.DefaultQuery("offset", "0")
+
+	var limitInt, offsetInt int
+	if _, err := fmt.Sscanf(limit, "%d", &limitInt); err != nil || limitInt < 1 || limitInt > 200 {
+		limitInt = 50
+	}
+	if _, err := fmt.Sscanf(offset, "%d", &offsetInt); err != nil || offsetInt < 0 {
+		offsetInt = 0
+	}
+
+	query := `SELECT o.id, o.customer_id, c.name, c.phone, o.status, o.total_amount, o.tax_amount,
+	                  o.promised_date, o.notes, o.created_at, o.updated_at
+	           FROM orders o
+	           JOIN customers c ON c.id = o.customer_id
+	           WHERE 1=1`
+	countQuery := `SELECT COUNT(*) FROM orders o WHERE 1=1`
+	args := []interface{}{}
+	argIdx := 1
+
+	if statusFilter != "" {
+		query += ` AND o.status = $` + string(rune('0'+argIdx))
+		countQuery += ` AND o.status = $` + string(rune('0'+argIdx))
+		args = append(args, statusFilter)
+		argIdx++
+	}
+	if from != "" {
+		query += ` AND o.created_at::date >= $` + string(rune('0'+argIdx))
+		countQuery += ` AND o.created_at::date >= $` + string(rune('0'+argIdx))
+		args = append(args, from)
+		argIdx++
+	}
+	if to != "" {
+		query += ` AND o.created_at::date <= $` + string(rune('0'+argIdx))
+		countQuery += ` AND o.created_at::date <= $` + string(rune('0'+argIdx))
+		args = append(args, to)
+		argIdx++
+	}
+	if customerID != "" {
+		query += ` AND o.customer_id = $` + string(rune('0'+argIdx))
+		countQuery += ` AND o.customer_id = $` + string(rune('0'+argIdx))
+		args = append(args, customerID)
+		argIdx++
+	}
+
+	query += ` ORDER BY o.created_at DESC LIMIT $` + string(rune('0'+argIdx)) + ` OFFSET $` + string(rune('0'+(argIdx+1)))
+	limitArgs := append(args, limitInt, offsetInt)
+
+	var totalCount int
+	err := h.db.QueryRow(countQuery, args...).Scan(&totalCount)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count orders: " + err.Error()})
+		return
+	}
+
+	rows, err := h.db.Query(query, limitArgs...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch orders: " + err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var orders []models.Order
+	for rows.Next() {
+		var o models.Order
+		if err := rows.Scan(
+			&o.ID, &o.CustomerID, &o.CustomerName, &o.CustomerPhone,
+			&o.Status, &o.TotalAmount, &o.TaxAmount,
+			&o.PromisedDate, &o.Notes, &o.CreatedAt, &o.UpdatedAt,
+		); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan order: " + err.Error()})
+			return
+		}
+		orders = append(orders, o)
+	}
+
+	if orders == nil {
+		orders = []models.Order{}
+	}
+
+	c.JSON(http.StatusOK, models.OrderListResponse{
+		Orders: orders,
+		Count:  totalCount,
+	})
+}

@@ -160,3 +160,152 @@ export const SERVICE_CATALOG: ServiceOption[] = [
     icon: '✂️',
   },
 ];
+
+// --- User & Auth ---
+export type UserRole = 'admin' | 'manager' | 'staff';
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: User;
+}
+
+export interface CreateUserPayload {
+  email: string;
+  password: string;
+  name: string;
+  role: UserRole;
+}
+
+export interface UpdateUserPayload {
+  email?: string;
+  name?: string;
+  role?: UserRole;
+  is_active?: boolean;
+}
+
+// --- Payment ---
+export type PaymentMethod = 'cash' | 'card' | 'mobile';
+
+export interface Payment {
+  id: string;
+  order_id: string;
+  amount: number;
+  method: PaymentMethod;
+  reference: string;
+  paid_at: string;
+  created_at: string;
+}
+
+export interface CreatePaymentPayload {
+  amount: number;
+  method: PaymentMethod;
+  reference?: string;
+}
+
+// --- Invoice ---
+export interface Invoice {
+  id: string;
+  order_id: string;
+  invoice_number: string;
+  issued_at: string;
+  printed: boolean;
+  customer_name: string;
+  customer_phone: string;
+  items: OrderItem[];
+  total_amount: number;
+  tax_amount: number;
+  payments: Payment[];
+  balance_due: number;
+}
+
+// --- Service Catalog (API) ---
+export interface Service {
+  id: string;
+  service_id: string;
+  name: string;
+  description: string;
+  unit: 'kg' | 'item';
+  unit_price: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface CreateServicePayload {
+  service_id: string;
+  name: string;
+  description?: string;
+  unit: 'kg' | 'item';
+  unit_price: number;
+}
+
+export interface UpdateServicePayload {
+  name?: string;
+  description?: string;
+  unit?: 'kg' | 'item';
+  unit_price?: number;
+  is_active?: boolean;
+}
+
+// --- Reports ---
+export interface DailySummary {
+  date: string;
+  total_orders: number;
+  total_revenue: number;
+  total_tax: number;
+  total_discount: number;
+  cash_amount: number;
+  card_amount: number;
+  mobile_amount: number;
+  avg_order_value: number;
+}
+
+export interface RevenueReport {
+  date: string;
+  amount: number;
+}
+
+export interface ServiceBreakdown {
+  service_name: string;
+  count: number;
+  revenue: number;
+}
+
+export interface TopCustomer {
+  customer_id: string;
+  customer_name: string;
+  order_count: number;
+  total_spent: number;
+}
+
+// --- Dashboard ---
+export interface DashboardStats {
+  orders_today: number;
+  revenue_today: number;
+  pending_orders: number;
+  total_customers: number;
+}
+
+// --- Extended types ---
+export interface OrderListAllParams {
+  status?: string;
+  from?: string;
+  to?: string;
+  customer_id?: string;
+  limit?: number;
+  offset?: number;
+}

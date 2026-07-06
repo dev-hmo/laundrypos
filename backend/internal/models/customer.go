@@ -20,3 +20,11 @@ type CreateCustomerRequest struct {
 	Email       string `json:"email"`
 	Preferences string `json:"preferences"`
 }
+
+// UpdateCustomerRequest is the payload for updating a customer.
+type UpdateCustomerRequest struct {
+	Name        *string `json:"name"`
+	Phone       *string `json:"phone"`
+	Email       *string `json:"email"`
+	Preferences *string `json:"preferences"`
+}

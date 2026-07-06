@@ -1,13 +1,15 @@
 'use client';
 
 import { useCartStore } from '@/stores/useCartStore';
-import { orderApi } from '@/lib/api';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/components/ui/Toast';
 import { useState } from 'react';
-import type { CreateOrderPayload } from '@/types';
 
-export function CartPanel() {
+interface CartPanelProps {
+  onPlaceOrder?: () => void;
+  isPlacing?: boolean;
+  error?: Error | null;
+}
+
+export function CartPanel({ onPlaceOrder, isPlacing = false, error: mutationError }: CartPanelProps) {
   const {
     items,
     customerId,
@@ -23,46 +25,13 @@ export function CartPanel() {
     clearCart,
   } = useCartStore();
 
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const [showDiscountInput, setShowDiscountInput] = useState(false);
-
-  const createOrderMutation = useMutation({
-    mutationFn: (payload: CreateOrderPayload) => orderApi.create(payload),
-    onSuccess: () => {
-      clearCart();
-      toast('Order placed successfully', 'success');
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-    },
-    onError: (err: Error) => {
-      toast(err.message || 'Failed to place order', 'error');
-    },
-  });
-
-  const handlePlaceOrder = () => {
-    if (!customerId || items.length === 0) return;
-
-    const payload: CreateOrderPayload = {
-      customer_id: customerId,
-      tax_amount: getTax(),
-      total_amount: getGrandTotal(),
-      items: items.map((item) => ({
-        service_type: item.serviceType,
-        weight_kg: item.weightKg,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-        subtotal: item.subtotal,
-      })),
-    };
-
-    createOrderMutation.mutate(payload);
-  };
 
   const subtotal = getSubtotal();
   const discount = getDiscount();
   const tax = getTax();
   const grandTotal = getGrandTotal();
-  const canSubmit = customerId && items.length > 0 && !createOrderMutation.isPending;
+  const canSubmit = customerId && items.length > 0 && !isPlacing;
 
   return (
     <div className="flex flex-col h-full">
@@ -208,20 +177,20 @@ export function CartPanel() {
             </span>
           </div>
 
-          {createOrderMutation.isError && (
+          {mutationError && (
             <p className="text-xs text-[var(--color-error)] mt-1" role="alert">
-              {createOrderMutation.error?.message || 'Failed to place order'}
+              {mutationError.message || 'Failed to place order'}
             </p>
           )}
 
           <button
             id="place-order-btn"
-            onClick={handlePlaceOrder}
-            disabled={!canSubmit}
+            onClick={onPlaceOrder}
+            disabled={!canSubmit || !onPlaceOrder}
             className="btn-primary w-full mt-3 text-base py-3"
             aria-label={!customerId ? 'Select a customer first' : `Place order for $${grandTotal.toFixed(2)}`}
           >
-            {createOrderMutation.isPending ? (
+            {isPlacing ? (
               <span className="flex items-center gap-2">
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Processing...

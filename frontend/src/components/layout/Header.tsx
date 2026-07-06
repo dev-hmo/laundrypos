@@ -6,14 +6,21 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/lib/auth';
 
 const PAGE_TITLES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
   '/pos': 'Point of Sale',
   '/orders': 'Order Board',
+  '/customers': 'Customers',
+  '/reports': 'Reports',
+  '/settings/services': 'Services',
+  '/admin/users': 'User Management',
 };
 
 export function Header() {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
   const [currentTime, setCurrentTime] = useState('');
 
   useEffect(() => {
@@ -43,6 +50,24 @@ export function Header() {
         </h1>
       </div>
       <div className="flex items-center gap-4">
+        {user && (
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-sm font-medium text-[var(--color-text-primary)] leading-tight">
+                {user.name}
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)] capitalize leading-tight">
+                {user.role}
+              </p>
+            </div>
+            <button
+              onClick={logout}
+              className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-error)] transition-colors"
+            >
+              Logout
+            </button>
+          </div>
+        )}
         <span className="text-sm text-[var(--color-text-secondary)] font-medium tabular-nums">
           {currentTime}
         </span>

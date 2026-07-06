@@ -83,6 +83,37 @@ type UpdateStatusRequest struct {
 	Status string `json:"status" binding:"required"`
 }
 
+// UpdateOrderRequest is the payload for updating an order.
+type UpdateOrderRequest struct {
+	PromisedDate *time.Time `json:"promised_date"`
+	Notes        *string    `json:"notes"`
+}
+
+// CancelOrderRequest is the payload for cancelling an order.
+type CancelOrderRequest struct {
+	Reason string `json:"reason"`
+}
+
+// OrderListRequest holds optional filters for listing all orders.
+type OrderListRequest struct {
+	Status     string `json:"status" form:"status"`
+	From       string `json:"from" form:"from"`
+	To         string `json:"to" form:"to"`
+	CustomerID string `json:"customer_id" form:"customer_id"`
+	Limit      int    `json:"limit" form:"limit"`
+	Offset     int    `json:"offset" form:"offset"`
+}
+
+// CustomerOrderHistory represents a customer's order history summary.
+type CustomerOrderHistory struct {
+	CustomerID      string  `json:"customer_id"`
+	CustomerName    string  `json:"customer_name"`
+	CustomerPhone   string  `json:"customer_phone"`
+	TotalOrders     int     `json:"total_orders"`
+	TotalAmount     float64 `json:"total_amount"`
+	LastOrderDate   string  `json:"last_order_date"`
+}
+
 // OrderListResponse wraps a list of orders for API responses.
 type OrderListResponse struct {
 	Orders []Order `json:"orders"`
