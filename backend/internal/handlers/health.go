@@ -19,11 +19,14 @@ func NewHealthHandler(db *sql.DB) *HealthHandler {
 
 // Check returns the health status of the API and database.
 func (h *HealthHandler) Check(c *gin.Context) {
-	// Check database connectivity
-	err := h.db.Ping()
 	dbStatus := "up"
-	if err != nil {
-		dbStatus = "down"
+	if h.db != nil {
+		err := h.db.Ping()
+		if err != nil {
+			dbStatus = "down"
+		}
+	} else {
+		dbStatus = "disconnected"
 	}
 
 	status := http.StatusOK

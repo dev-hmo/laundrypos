@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"net/http"
 	"os"
@@ -30,20 +31,24 @@ func main() {
 	slog.Info("starting server", "port", cfg.Port, "log_level", cfg.LogLevel)
 
 	// Connect to database
-	db, err := database.Connect(cfg.DatabaseURL)
+	var (
+		db  *sql.DB
+		err error
+	)
+	db, err = database.Connect(cfg.DatabaseURL)
 	if err != nil {
-		slog.Error("failed to connect to database", "error", err)
-		os.Exit(1)
-	}
-	defer db.Close()
-	slog.Info("connected to PostgreSQL")
+		slog.Error("failed to connect to database, starting without DB", "error", err)
+	} else {
+		defer db.Close()
+		slog.Info("connected to PostgreSQL")
 
-	// Run migrations
-	if err := database.RunMigrations(db, cfg.MigrationsDir); err != nil {
-		slog.Error("failed to run migrations", "error", err)
-		os.Exit(1)
+		// Run migrations
+		if err := database.RunMigrations(db, cfg.MigrationsDir); err != nil {
+			slog.Error("failed to run migrations", "error", err)
+		} else {
+			slog.Info("migrations complete")
+		}
 	}
-	slog.Info("migrations complete")
 
 	// Initialize router
 	r := router.Setup(db, cfg)
